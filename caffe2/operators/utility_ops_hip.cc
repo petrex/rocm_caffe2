@@ -60,13 +60,13 @@ bool NanCheckOp<HIPContext>::RunOnDevice() {
   scratch_.Resize(1);
   math::Set<bool, HIPContext>(
       1, false, scratch_.mutable_data<bool>(), &context_);
-  hipLaunchKernelGGL((NanCheckKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+  hipLaunchKernelGGL((NanCheckKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
       N, X.data<float>(), scratch_.mutable_data<bool>());
 
   bool result = false;
   {
     std::lock_guard<std::mutex> lock(HIPContext::mutex());
-    CUDA_ENFORCE(hipMemcpyAsync(
+    HIP_ENFORCE(hipMemcpyAsync(
         &result,
         scratch_.raw_data(),
         1,
@@ -136,7 +136,7 @@ bool MaxOp<float, HIPContext>::Compute() {
 
   // Run pairwise-maxes
   for (int i = 1; i < InputSize(); ++i) {
-    hipLaunchKernelGGL((ElwiseMaxKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+    hipLaunchKernelGGL((ElwiseMaxKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
         (i == 0 ? Input(0).data<float>() : Output(0)->data<float>()),
         Input(i).data<float>(),
         output_data,
@@ -163,7 +163,7 @@ bool MinOp<float, HIPContext>::Compute() {
 
   // Run pairwise-mines
   for (int i = 1; i < InputSize(); ++i) {
-    hipLaunchKernelGGL((ElwiseMinKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+    hipLaunchKernelGGL((ElwiseMinKernel), dim3(CAFFE_GET_BLOCKS(N)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
         (i == 0 ? Input(0).data<float>() : Output(0)->data<float>()),
         Input(i).data<float>(),
         output_data,
@@ -196,7 +196,7 @@ bool SelectGradientOpBase<float, HIPContext>::RunOnDevice() {
     auto& input = Input(i + kInputStartOffset);
     auto* grad_input = Output(i);
     grad_input->ResizeLike(input);
-    hipLaunchKernelGGL((MaxMinGradKernel), dim3(CAFFE_GET_BLOCKS(input.size())), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+    hipLaunchKernelGGL((MaxMinGradKernel), dim3(CAFFE_GET_BLOCKS(input.size())), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
         input.size(),
         output.data<float>(),
         input.data<float>(),
@@ -347,7 +347,7 @@ bool ScatterWeightedSumOp<float, HIPContext>::DoRunWithType() {
   context_.Copy<const float*, CPUContext, HIPContext>(
       B, weights_host, weights_device);
 
-  hipLaunchKernelGGL((AxpySliceKernel), dim3(std::min<TIndex>(K, CAFFE_MAXIMUM_NUM_BLOCKS)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+  hipLaunchKernelGGL((AxpySliceKernel), dim3(std::min<TIndex>(K, CAFFE_MAXIMUM_NUM_BLOCKS)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
       weight0.template data<float>(),
       K,
       B,
@@ -491,7 +491,7 @@ void UniqueOp<HIPContext>::DoRun() {
   // from. The rest is easy.
   if (remapping != nullptr) {
     // record remap
-    hipLaunchKernelGGL((remap_kernel), dim3(CAFFE_GET_BLOCKS(K)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(), 
+    hipLaunchKernelGGL((remap_kernel), dim3(CAFFE_GET_BLOCKS(K)), dim3(CAFFE_HIP_NUM_THREADS), 0, context_.hip_stream(),
         order2.data(), order1.data(), remapping, N, K);
   }
 }
