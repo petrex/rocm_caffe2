@@ -21,11 +21,13 @@
 // and std::isinf are declared constexpr there and the nvidia
 // compiler throws an error because of it
 
+/*
 #include <thrust/device_vector.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/unique.h>
+*/
 #include "caffe2/core/context_hip.h"
 #include "flatten_op.h"
 #include "minmax_ops.h"
@@ -226,7 +228,7 @@ __global__ void GatherKernel(
 template <>
 bool GatherOp<HIPContext>::RunOnDevice() {
   return DispatchHelper<TensorTypes<int32_t, int64_t>>::call(
-      this, OperatorBase::Input<TensorCUDA>(INDICES));
+      this, OperatorBase::Input<TensorHIP>(INDICES));
 }
 
 template <>
@@ -283,7 +285,7 @@ __global__ void AxpySliceKernel(
     float* Y,
     const TIndex M) {
   // This implementation requires that the first weight is 1.0
-  CUDA_KERNEL_ASSERT(weight0[0] == 1.0);
+  HIP_KERNEL_ASSERT(weight0[0] == 1.0);
   for (int i = blockIdx.x; i < N; i += gridDim.x) {
     T_INDEX idx = Indices[i];
     float* y_offset = Y + (idx * slice_size);
@@ -377,7 +379,7 @@ __global__ void scatter_assign_kernel(
     TIndex block_size) {
   for (TIndex i = blockIdx.x; i < K; i += gridDim.x) {
     Index idx = idxs[i];
-    CUDA_KERNEL_ASSERT(0 <= idx && idx < N);
+    HIP_KERNEL_ASSERT(0 <= idx && idx < N);
     const T* src = slicesData + block_size * i;
     T* dest = data + block_size * idx;
     for (TIndex j = threadIdx.x; j < block_size; j += blockDim.x) {
